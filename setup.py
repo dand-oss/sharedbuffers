@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
 import os.path
+import platform
 import pkg_resources
 
 # Earlier versions have an issue with Cython.Build and Extension subclassing
@@ -46,10 +47,13 @@ no_setup_requires_arguments = set([
 cmd_class = {}
 extra = {}
 
-if set(sys.argv[1:]) <= no_setup_requires_arguments:
-    cythonize = None
+cythonize = None
+is_pypy = (platform.python_implementation() == 'PyPy')
+if is_pypy:
+    sys.argv.append("--no-cython")
 else:
-    cythonize = True
+    if not set(sys.argv[1:]) <= no_setup_requires_arguments:
+        cythonize = True
 
 try:
     import setuptools.command.test

@@ -67,7 +67,6 @@ import mmap
 import numpy
 import tempfile
 import functools
-import cPickle
 import os
 import sys
 import xxhash
@@ -81,6 +80,26 @@ import weakref
 import ctypes
 from datetime import timedelta, datetime, date
 from decimal import Decimal
+
+try:
+    import cPickle
+except ImportError:
+    import pickle as cPickle
+
+try:
+    long
+except:
+    long = int
+
+try:
+    xrange
+except:
+    xrange = range
+
+try:
+    basestring
+except:
+    basestring = str
 
 try:
     from cdecimal import Decimal as cDecimal
@@ -109,10 +128,46 @@ npfloat32 = cython.declare(object, numpy.float32)
 npempty = cython.declare(object, numpy.empty)
 npfrombuffer = cython.declare(object, numpy.frombuffer)
 npndarray = cython.declare(object, numpy.ndarray)
+_py3 = cython.declare(cython.bint, False)
+_py3 = sys.version_info[0] >= 3
 
 frexp = cython.declare(object, math.frexp)
 
 ctypes_Array = cython.declare(object, ctypes.Array)
+
+if _py3:
+    xrange = range
+    @cython.inline
+    @cython.ccall
+    def cmp(a, b):
+        return int(a > b) - int(a < b)
+
+@cython.inline
+@cython.ccall
+def untyped_buffer(buf):
+    buf = memoryview(buf)
+    if _py3:
+        if buf.itemsize > 1:
+            buf = buf.cast('B')
+    return buf
+
+if cython.compiled:
+    # Compatibility fix for cython >= 0.23, which no longer supports "buffer" as a built-in type
+    buffer = cython.declare(object, buffer)  # lint:ok
+    buffer_type = cython.declare(object, buffer)  # lint:ok
+    try:
+        from types import BufferType as buffer_type
+        buffer = buffer_type
+    except ImportError:
+        buffer = untyped_buffer
+        buffer_type = memoryview
+else:
+    try:
+        unicode
+    except NameError:
+        # py3 unicode=str alias, in a way that lets cython still use its built-in unicode
+        globals()['unicode'] = str
+
 
 if cython.compiled:
     # Compatibility fix for cython >= 0.23, which no longer supports "buffer" as a built-in type
@@ -411,7 +466,7 @@ def shared_id(obj):
             return obj | LONG_MASK
         elif isinstance(obj, long):
             # Real longs must make room for the flag bits
-            return (obj & 0xFFFFFFFFFFFFFFFFL) | ((obj >> 64) << 68) | LONG_MASK
+            return (obj & 0xFFFFFFFFFFFFFFFF) | ((obj >> 64) << 68) | LONG_MASK
 
         # For other keys, use the object itself as key if hashable
         try:
@@ -429,10 +484,10 @@ class WRAPPED:
     pass
 
 
-WRAP_MASK = cython.declare(object, 1L << 64)
-LONG_MASK = cython.declare(object, 2L << 64)
-PROXY_MASK = cython.declare(object, 4L << 64)
-FLAG_MASK = cython.declare(object, 0xFL << 64)
+WRAP_MASK = cython.declare(object, 1 << 64)
+LONG_MASK = cython.declare(object, 2 << 64)
+PROXY_MASK = cython.declare(object, 4 << 64)
+FLAG_MASK = cython.declare(object, 0xF << 64)
 
 
 @cython.ccall
@@ -682,15 +737,15 @@ class mapped_tuple(tuple):
                     elif 0 <= iminval and imaxval <= cython.cast(cython.longlong, 0xFFFFFFFF):
                         # inline unsigned ints
                         buf[offs] = dtype = 'I'
-                    elif (cython.cast(cython.longlong, -0x8000000000000000L) <= iminval
-                            and imaxval <= cython.cast(cython.longlong, 0x7FFFFFFFFFFFFFFFL)):
+                    elif (cython.cast(cython.longlong, -0x8000000000000000) <= iminval
+                            and imaxval <= cython.cast(cython.longlong, 0x7FFFFFFFFFFFFFFF)):
                         # inline signed int64 list
                         buf[offs] = 'q'
                         dtype = 'l'
                     else:
                         raise OverflowError
                 except OverflowError:
-                    if 0 <= minval and maxval <= 0xFFFFFFFFFFFFFFFFL:
+                    if 0 <= minval and maxval <= 0xFFFFFFFFFFFFFFFF:
                         # inline unsigned int64 list
                         buf[offs] = 'Q'
                         dtype = 'L'
@@ -4509,7 +4564,7 @@ class Schema(object):
                                 except:
                                     pass
                                 else:
-                                    raise type(e), e, sys.exc_info()[2]
+                                    raise Exception(type(e), e, sys.exc_info()[2])
                                 raise
                             padding = (offs + alignment - 1) / alignment * alignment - offs
                             offs += padding

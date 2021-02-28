@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
+import sys
 import unittest
 from .mapped_struct import TestStruct
 
 from sharedbuffers import mapped_struct, pool
+_py3 = sys.version_info[0] >= 3
+
+if _py3:
+    xrange = range
 
 class ContainerStruct(TestStruct):
     __slot_types__ = {

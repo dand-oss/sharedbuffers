@@ -21,11 +21,35 @@ except:
 from sharedbuffers import mapped_struct
 
 SKIP_HUGE = os.environ.get('SKIP_HUGE','')
+try:
+    unicode
+except:
+    unicode = str
+
+try:
+    long
+except:
+    long = int
+
+try:
+    xrange
+except:
+    xrange = range
+
+try:
+    buffer
+except:
+    buffer = memoryview
 
 try:
     import cPickle
 except ImportError:
     import pickle as cPickle
+
+try:
+    izip = itertools.izip
+except AttributeError:
+    izip = zip
 
 SKIP_HUGE = os.environ.get('SKIP_HUGE', None)
 
@@ -37,7 +61,7 @@ class SimpleStruct(object):
     __slots__ = __slot_types__.keys()
 
     def __init__(self, **kw):
-        for k,v in kw.iteritems():
+        for k,v in kw.items():
             setattr(self, k, v)
 
 def _make_nattrs(n):
@@ -97,7 +121,7 @@ class TestStruct(object):
     __slots__ = __slot_types__.keys()
 
     def __init__(self, **kw):
-        for k,v in kw.iteritems():
+        for k,v in kw.items():
             setattr(self, k, v)
 
 class SizedNumericStruct(TestStruct):
@@ -200,7 +224,7 @@ class SchemaPicklingTest(AttributeBitmapTest):
 
         for k in delattrs:
             delattr(x, k)
-        for k,v in values.iteritems():
+        for k,v in values.items():
             setattr(x, k, v)
 
         px = schema.pack(x)
@@ -274,9 +298,9 @@ class BasePackingTestMixin(object):
 
     def testPackUnpack(self):
         for TEST_VALUES in self.TEST_VALUES:
-            x = self.Struct(**{k:v for k,v in TEST_VALUES.iteritems()})
+            x = self.Struct(**{k:v for k,v in TEST_VALUES.items()})
             dx = self.schema.unpack(self.schema.pack(x))
-            for k,v in TEST_VALUES.iteritems():
+            for k,v in TEST_VALUES.items():
                 self.assertTrue(hasattr(dx, k))
                 self.assertEqual(getattr(dx, k), v)
             for k in self.Struct.__slots__:
@@ -285,11 +309,11 @@ class BasePackingTestMixin(object):
 
     def testPackUnpackIdmap(self):
         for TEST_VALUES in self.TEST_VALUES:
-            x = self.Struct(**{k:v for k,v in TEST_VALUES.iteritems()})
+            x = self.Struct(**{k:v for k,v in TEST_VALUES.items()})
             pack_idmap = {}
             unpack_idmap = {}
             dx = self.schema.unpack(self.schema.pack(x, pack_idmap), unpack_idmap)
-            for k,v in TEST_VALUES.iteritems():
+            for k,v in TEST_VALUES.items():
                 unpack_idmap.clear()
                 self.assertTrue(hasattr(dx, k))
                 self.assertEqual(getattr(dx, k), v)
@@ -300,7 +324,7 @@ class BasePackingTestMixin(object):
 
     def testPackMultiple(self):
         for TEST_VALUES in self.TEST_VALUES:
-            x = self.Struct(**{k:v for k,v in TEST_VALUES.iteritems()})
+            x = self.Struct(**{k:v for k,v in TEST_VALUES.items()})
 
             buf = bytearray(16<<20)
             offsets = []
@@ -310,7 +334,7 @@ class BasePackingTestMixin(object):
                 endp = self.schema.pack_into(x, buf, endp)
             for offs in offsets:
                 dx = self.schema.unpack_from(buf, offs)
-                for k,v in TEST_VALUES.iteritems():
+                for k,v in TEST_VALUES.items():
                     self.assertTrue(hasattr(dx, k))
                     self.assertEqual(getattr(dx, k), v)
                 for k in self.Struct.__slots__:
@@ -319,10 +343,10 @@ class BasePackingTestMixin(object):
 
     def testPackPickleUnpack(self):
         for TEST_VALUES in self.TEST_VALUES:
-            x = self.Struct(**{k:v for k,v in TEST_VALUES.iteritems()})
+            x = self.Struct(**{k:v for k,v in TEST_VALUES.items()})
             pschema = cPickle.loads(cPickle.dumps(self.schema))
             dx = pschema.unpack(self.schema.pack(x))
-            for k,v in TEST_VALUES.iteritems():
+            for k,v in TEST_VALUES.items():
                 self.assertTrue(hasattr(dx, k))
                 self.assertEqual(getattr(dx, k), v)
             for k in self.Struct.__slots__:
@@ -332,10 +356,10 @@ class BasePackingTestMixin(object):
     def testUnpackInto(self):
         dx = self.schema.Proxy()
         for TEST_VALUES in self.TEST_VALUES * 2:
-            x = self.Struct(**{k:v for k,v in TEST_VALUES.iteritems()})
+            x = self.Struct(**{k:v for k,v in TEST_VALUES.items()})
             px = self.schema.pack(x)
             dx = self.schema.unpack(px, proxy_into = dx)
-            for k,v in TEST_VALUES.iteritems():
+            for k,v in TEST_VALUES.items():
                 self.assertTrue(hasattr(dx, k))
                 self.assertEqual(getattr(dx, k), v)
             for k in self.Struct.__slots__:
@@ -344,10 +368,10 @@ class BasePackingTestMixin(object):
 
     def testPackRepack(self):
         for TEST_VALUES in self.TEST_VALUES:
-            x = self.Struct(**{k:v for k,v in TEST_VALUES.iteritems()})
+            x = self.Struct(**{k:v for k,v in TEST_VALUES.items()})
             dx = self.schema.unpack(self.schema.pack(x))
             dx = self.schema.unpack(self.schema.pack(dx))
-            for k,v in TEST_VALUES.iteritems():
+            for k,v in TEST_VALUES.items():
                 self.assertTrue(hasattr(dx, k))
                 self.assertEqual(getattr(dx, k), v)
             for k in self.Struct.__slots__:
@@ -631,7 +655,7 @@ class NestedTypedObjectPackagingTest(NestedObjectPackagingTest):
             __slots__ = __slot_types__.keys()
 
             def __init__(self, **kw):
-                for k,v in kw.iteritems():
+                for k,v in kw.items():
                     setattr(self, k, v)
         self.Struct = ContainerObjectStruct
 
@@ -652,7 +676,7 @@ class NestedAutoregisterTypedObjectPackagingTest(NestedTypedObjectPackagingTest)
             # re-register subschema
             mapped_struct.mapped_object.register_schema(self.SubStruct, self.subschema, '}')
 
-            x = self.Struct(**{k:v for k,v in TEST_VALUES.iteritems()})
+            x = self.Struct(**{k:v for k,v in TEST_VALUES.items()})
             pschema = cPickle.dumps(self.schema)
 
             # Unregister schema to force the need for auto-register
@@ -662,7 +686,7 @@ class NestedAutoregisterTypedObjectPackagingTest(NestedTypedObjectPackagingTest)
             pschema = cPickle.loads(pschema)
 
             dx = pschema.unpack(self.schema.pack(x))
-            for k,v in TEST_VALUES.iteritems():
+            for k,v in TEST_VALUES.items():
                 self.assertTrue(hasattr(dx, k))
                 self.assertEqual(getattr(dx, k), v)
             for k in self.Struct.__slots__:
@@ -1068,13 +1092,13 @@ class MappedMappingTest(unittest.TestCase):
         self.assertEqual(set(test_values.iterkeys()), set(mapping.iterkeys()))
 
         # test lookup
-        for k,reference in test_values.iteritems():
+        for k,reference in test_values.items():
             self.assertStructEquals(reference, mapping.get(k))
-        for k,reference in test_values.iteritems():
+        for k,reference in test_values.items():
             self.assertStructEquals(reference, mapping[k])
 
         # test item iteration and enumeration
-        for k,proxy in mapping.iteritems():
+        for k,proxy in mapping.items():
             reference = test_values[k]
             self.assertStructEquals(reference, proxy)
         for k,proxy in mapping.items():
@@ -1200,7 +1224,7 @@ class MappedMultiMappingTest(MappedMappingTest):
             self.assertMultivalueContains(reference, list(mapping.get_iter(k)), k)
 
         # test item iteration and enumeration
-        for k,proxy in mapping.iteritems():
+        for k,proxy in mapping.items():
             reference = [ val for rk,val in self.test_values if rk == k ]
             self.assertMultivalueContains(proxy, reference, k)
         for k,proxy in mapping.items():
@@ -1281,7 +1305,7 @@ class MappedApproxStringMultiMappingTest(MappedStringMultiMappingTest):
         # test item iteration and enumeration
         xxh = mapping.id_mapper.xxh
         encode = mapping.id_mapper.encode
-        for k,proxy in mapping.iteritems():
+        for k,proxy in mapping.items():
             reference = [ val for rk,val in self.test_values if xxh(encode(rk)).intdigest() == k ]
             self.assertMultivalueContains(proxy, reference, k)
         for k,proxy in mapping.items():
@@ -1731,7 +1755,7 @@ class ProxiedFrozensetPackingTest(unittest.TestCase, CommonCollectionPackingTest
         self.assertTrue(big >= small)
         self.assertFalse(big > big)
 
-        big = self.pack([1L, 2L, 3L])
+        big = self.pack([1, 2, 3])
         self.assertTrue(small < big)
         self.assertTrue(small <= big)
 
@@ -2134,7 +2158,7 @@ class DictPackingCommonTest(object):
     def testMappedDictIterItems(self):
         for d in self.TEST_DICTS:
             p = self.pack(d)
-            self.assertUnsortedEquals([v for v in d.iteritems()], [v for v in p.iteritems()])
+            self.assertUnsortedEquals([v for v in d.items()], [v for v in p.items()])
 
 
 class MappedDictPackingTest(unittest.TestCase, CollectionPackingTestHelpers, DictPackingCommonTest):
@@ -2187,11 +2211,11 @@ class StableHashTest(unittest.TestCase):
             (20913041029, 20913041029),
             (66210231110, 66210231110),
             (752, 752),
-            (-1, 18446744073709551615L),
+            (-1, 18446744073709551615),
             (1 << 100, 1),
             (-(1 << 100), 1),
-            (1L, 1),
-            (-1L, 18446744073709551615L),
+            (1, 1),
+            (-1, 18446744073709551615),
         )
         self.assertHashesOK(values_hashes)
 
@@ -2202,29 +2226,29 @@ class StableHashTest(unittest.TestCase):
             (107203., 107203),
             (91024215., 91024215),
             (13328914., 13328914),
-            (-1., 18446744073709551615L),
-            (1e+50, 150463276902340L),
-            (1e-50, 263280728297184L),
-            (2.001, 140807857099441L),
-            (-2.001, 18446603265852452175L),
-            (float('inf'), 281474976710655L),
-            (float('-inf'), 18446462598732840961L),
-            (float('nan'), 562949953421310L),
+            (-1., 18446744073709551615),
+            (1e+50, 150463276902340),
+            (1e-50, 263280728297184),
+            (2.001, 140807857099441),
+            (-2.001, 18446603265852452175),
+            (float('inf'), 281474976710655),
+            (float('-inf'), 18446462598732840961),
+            (float('nan'), 562949953421310),
         )
         self.assertHashesOK(values_hashes)
 
     def testHashStringsFixed(self):
         values_hashes = (
-            ("abcdef", 18053520794346263629L),
-            ("123456789", 10139926970967174787L),
-            ("!@#%&$", 15648343848775299486L),
+            ("abcdef", 18053520794346263629),
+            ("123456789", 10139926970967174787),
+            ("!@#%&$", 15648343848775299486),
         )
         self.assertHashesOK(values_hashes)
 
     def testHashSequenceFixed(self):
         values_hashes = (
-            ((1, "abc", -2.3), 2059039662577021167L),
-            (frozenset([1.2, 4.5, 0.12]), 4015877951310865576L),
+            ((1, "abc", -2.3), 2059039662577021167),
+            (frozenset([1.2, 4.5, 0.12]), 4015877951310865576),
         )
         self.assertHashesOK(values_hashes)
 
@@ -2408,8 +2432,8 @@ class WriteableMappingTest(unittest.TestCase):
         proxy.hx = -1000
         proxy.Ix = 100000
         proxy.ix = -100000
-        proxy.Qx = 10000000000L
-        proxy.qx = -10000000000L
+        proxy.Qx = 10000000000
+        proxy.qx = -10000000000
         proxy.dx = 1.5
         proxy.fx = -1.5
         self.assertAlmostEqual(0.0, proxy.Bx + proxy.bx + proxy.Hx + proxy.hx +
